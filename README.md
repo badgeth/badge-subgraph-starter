@@ -152,7 +152,7 @@ export function createOrLoadEntityStats(): EntityStats {
 
   if (entityStats == null) {
     entityStats = new EntityStats("1");
-    entityStats.badgeCount = 0;
+    entityStats.totalBadgesAwarded = 0;
     entityStats.save();
   }
 
