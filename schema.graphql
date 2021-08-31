@@ -1,0 +1,74 @@
+"""
+Winners of the badge
+"""
+type Winner @entity {
+  "ETH address of the winner"
+  id: ID!
+  "Number of badges won"
+  badgeCount: Int!
+  "Badges awarded to address"
+  badgesAwarded: [BadgeAward!]! @derivedFrom(field: "winner")
+}
+
+"""
+The badge that is awarded to winner
+"""
+type BadgeAward @entity {
+  "{badgeName}-{winner}"
+  id: ID!
+  "Address of the winner"
+  winner: Winner!
+  "Block number in which badge was awarded"
+  blockAwarded: BigInt!
+  "Additional details about the badge"
+  definition: BadgeDefinition!
+  "Number in which the badge was awarded"
+  winnerBadgeNumber: Int!
+  "Global badge number"
+  globalBadgeNumber: Int!
+  "Transaction when badge was awarded"
+  transactionHash: String
+  "Associated metadata"
+  dataItems: [DataItem!]! @derivedFrom(field: "badgeAward")
+}
+
+"""
+Additional details related to the badge
+"""
+type BadgeDefinition @entity {
+  "Name of the badge"
+  id: ID!
+  "Description of the badge"
+  description: String!
+  "IFTP link to the NFT badge"
+  image: String!
+  "Name of the artist responsible for NFT badge"
+  artist: String!
+  "Optional link to the artist's portfolio"
+  artistWebsite: String
+  "Total count of badges"
+  badgeCount: Int!
+  "Associated protocol for the badge"
+  protocol: Protocol!
+  "Badges awarded from this definition"
+  badgeAwards: [BadgeAward!]! @derivedFrom(field: "definition")
+}
+
+"""
+Protocols indexed by this subgraph
+"""
+type Protocol @entity {
+  "Name of the protocol"
+  id: ID!
+}
+
+"""
+Additional metadata to attach to a BadgeAward or BadgeDefinition
+"""
+type DataItem @entity {
+  id: ID!
+  badgeAward: BadgeAward
+  badgeDefinition: BadgeDefinition
+  key: String!
+  value: String!
+}

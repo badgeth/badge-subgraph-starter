@@ -1,12 +1,14 @@
-# Badge Subgraph Starter
+# Devs <> Badgeth
 
-Here are some helpful instructions for starting your own Badgeth badge subgraph!
+Developers, we are currently writing subgraphs for new protocols; this is your opportunity to define the on-chain behavior that you want to see rewarded. Devs who volunteer for the cause will receive an “O.G. Dev” NFT badge for bragging rights.
 
-## Installation
+Read on if you'd like to setup a Badgeth subgraph for an existing or new protocol!
 
-These instructions are taken in part from [The Graph docs](https://thegraph.com/docs/developer/define-subgraph-hosted).
+## Graph Node Setup
 
-Our first step is to setup our local graph-node.
+All subgraphs depend on graph-node running in the background. We've adapted the instructions from from [The Graph docs](https://thegraph.com/docs/developer/define-subgraph-hosted), and added a few recommendations of our own to expedite the process.
+
+Here are the steps:
 
 - Clone graph-node
 
@@ -14,7 +16,7 @@ Our first step is to setup our local graph-node.
   git clone https://github.com/graphprotocol/graph-node
   ```
 
-  - Sign up for [Alchemy](https://alchemy.com) and create your own Ethereum node. You can alternatively use your own Ethereum node if you have the hardware.
+  - Get access to an Ethereum node. We personally recommend the Free Tier of [Alchemy](https://alchemy.com) for developers who aren't interested in managing their own Ethereum node.
 
   - Edit your graph-node/docker/docker-compose.yml file. Change the "ethereum" environment variable to point to your Ethereum node. If you are using Alchemy, be sure to update <YOUR_API_KEY> and change <YOUR_NETWORK> to "mainnet" or "rinkeby".
 
@@ -35,11 +37,13 @@ Our first step is to setup our local graph-node.
   ...
   ```
 
-  - Start your docker processes
+  - Finally, fire up docker-compose and see the magic happen!
 
   ```bash
   docker-compose up
   ```
+
+## Graph CLI Scaffolding
 
 The next step is to install the Graph CLI via yarn or npm.
 
@@ -64,206 +68,41 @@ graph init \
   <SUBGRAPH_SLUG> [<DIRECTORY>]
 ```
 
-Once scaffolding is finished, `cd` into your newly created project and add the following entities to your `schema.graphql` file.
+## Add Badgeth Entities & Helper Functions
 
-```graphql
-"""
-Singleton entity that tracks numbers and stats
-"""
-type EntityStats @entity {
-  "ID is set to 1"
-  id: ID!
-  "Number of badges awarded"
-  totalBadgesAwarded: Int!
-}
+To ensure that subgraphs can be queried with a consistent format, we ask that you include all of the entities from the schema.graphql file in this repo: Winner, BadgeAward, BadgeDefinition, Protocol, and DataItem.
 
-"""
-Winners of the badge
-"""
-type Winner @entity {
-  "ETH address of the winner"
-  id: ID!
-  "Number of badges won"
-  badgeCount: Int!
-  "Badges awarded to address"
-  badgesAwarded: [BadgeAward!]! @derivedFrom(field: "winner")
-}
+We've also provided some helper functions in the src/models.ts file for your convenience. The helper functions are designed for subgraphs that return a single badge for a single protocol that can be awarded to users a single time. Feel free to edit these helper functions if your subgraph awards multiple badges or allows users to earn multiples of the same badge.
 
-"""
-The badge that is awarded to winner
-"""
-type BadgeAward @entity {
-  "{badgeName}-{winner}"
-  id: ID!
-  "Address of the winner"
-  winner: Winner!
-  "Block number in which badge was awarded"
-  blockAwarded: BigInt!
-  "Additional details about the badge"
-  definition: BadgeDefinition!
-  "Number in which the badge was awarded"
-  badgeNumber: Int!
-}
+## Deploy on The Graph Studio
 
-"""
-Additional details related to the badge
-"""
-type BadgeDefinition @entity {
-  "Name of the badge"
-  id: ID!
-  "Description of the badge"
-  description: String!
-  "IFTP link to the NFT badge"
-  image: String!
-  "Name of the artist responsible for NFT badge"
-  artist: String!
-  "Optional link to the artist's portfolio"
-  artistWebsite: String
-  "Total count of badges"
-  badgeCount: Int!
-  "URL slug for the frontend"
-  urlHandle: String!
-  "Associated protocol for the badge"
-  protocol: Protocol!
-}
+The easiest way to deploy your Badgeth badge subgraph is to use the [The Graph CLI](https://github.com/graphprotocol/graph-cli) and [The Graph Studio](https://thegraph.com/studio/). First, download The Graph CLI:
 
-"""
-Protocols indexed by this subgraph
-"""
-type Protocol @entity {
-  "Name of the protocol"
-  id: ID!
-  "Description for the protocol"
-  description: String!
-  "Website for the protocol"
-  website: String!
-}
+```bash
+npm install -g @graphprotocol/graph-cli
 ```
 
-Then, run your `npm run codegen` command to generate the type definitions for your newly added models in your `generated` folder!
+Next, create an account and new subgraph on [The Graph Studio](https://thegraph.com/studio/). Go to your subgraph page, click the "Details" tab, scroll down to the "AUTH & DEPLOY" section, and find your auth token. Then, authenticate within the CLI:
 
-## Helper Functions
-
-We've found that creating a suite of helper functions that will create or load your models is a beneficial pattern. Feel free to copy the following methods into a `models.ts` file.
-
-```typescript
-export function createOrLoadEntityStats(): EntityStats {
-  let entityStats = EntityStats.load("1");
-
-  if (entityStats == null) {
-    entityStats = new EntityStats("1");
-    entityStats.totalBadgesAwarded = 0;
-    entityStats.save();
-  }
-
-  return entityStats as EntityStats;
-}
-
-export function createOrLoadWinner(address: string): Winner {
-  let winner = Winner.load(address);
-
-  if (winner == null) {
-    winner = new Winner(address);
-    winner.badgeCount = 0;
-
-    winner.save();
-  }
-
-  return winner as Winner;
-}
-
-export function createBadgeAward(
-  badgeDefinition: BadgeDefinition,
-  winnerAddress: string,
-  blockNumber: BigInt
-): void {
-  // increment badgeCount
-  let winner = createOrLoadWinner(winnerAddress);
-  winner.badgeCount = winner.badgeCount + 1;
-  winner.save();
-
-  let entityStats = createOrLoadEntityStats();
-  entityStats.totalBadgesAwarded = entityStats.totalBadgesAwarded + 1;
-  entityStats.save();
-
-  badgeDefinition.badgeCount = badgeDefinition.badgeCount + 1;
-  badgeDefinition.save();
-
-  let badgeNumberString = BigInt.fromI32(badgeDefinition.badgeCount).toString();
-
-  // award badge
-  let badgeId = badgeDefinition.id.concat("-").concat(badgeNumberString);
-  let badgeAward = BadgeAward.load(badgeId);
-  if (badgeAward == null) {
-    badgeAward = new BadgeAward(badgeId);
-    badgeAward.winner = winner.id;
-    badgeAward.definition = badgeDefinition.id;
-    badgeAward.blockAwarded = blockNumber;
-    badgeAward.badgeNumber = badgeDefinition.badgeCount;
-    badgeAward.save();
-  }
-}
-
-export function createOrLoadBadgeDefinition(
-  name: string,
-  urlHandle: string,
-  description: string,
-  image: string,
-  artist: string,
-  protocolName: string
-): BadgeDefinition {
-  let badgeDefinition = BadgeDefinition.load(name);
-
-  if (badgeDefinition == null) {
-    badgeDefinition = new BadgeDefinition(name);
-    badgeDefinition.protocol = protocolName;
-    badgeDefinition.description = description;
-    badgeDefinition.image = image;
-    badgeDefinition.artist = artist;
-    badgeDefinition.urlHandle = urlHandle;
-    badgeDefinition.badgeCount = 0;
-
-    badgeDefinition.save();
-  }
-
-  return badgeDefinition as BadgeDefinition;
-}
-
-export function createProtocol(
-  name: string,
-  description: string,
-  website: string
-): Protocol {
-  let protocol = new Protocol(name);
-  protocol.description = description;
-  protocol.website = website;
-  protocol.save();
-
-  return protocol as Protocol;
-}
+```bash
+graph auth  --studio <STUDIO_AUTH_TOKEN>
 ```
 
-## Deploying Locally
-
-Double check that your graph-node processes are running! Then, run the following commands:
+Finally, you can build and deploy your subgraph:
 
 ```bash
 npm run codegen
 npm run build
-npm run create-local
-npm run deploy-local
+npm run deploy
 ```
 
-## Deploying to Production
+## Learn More
 
-To deploy your subgraph, we recommend reading the relevant [The Graph's docs](https://thegraph.com/docs/developer/deploy-subgraph-studio).
+To learn more about Badgeth and The Graph, take a look at the following resources:
 
-## Contributing
+- [The Graph Documentation](https://thegraph.org/docs) - learn about The Graph protocol and subgraph development
+- [Badgeth Subgraph Starter](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
 
-Please make sure to update tests as appropriate.
-
-## License
-
-[MIT](https://choosealicense.com/licenses/mit/)
+For questions and additional details, join our [Discord Channel](https://discord.com/invite/464p6GzrWq).
