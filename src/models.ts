@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts";
+import { ethereum } from "@graphprotocol/graph-ts";
 import {
   BadgeAward,
   BadgeDefinition,
@@ -10,11 +10,11 @@ import {
 const PROTOCOL_NAME = "Your Protocol";
 const BADGE_NAME = "Your Badge";
 const BADGE_DESCRIPTION = "Your Badge Description";
+const BADGE_ROLE = "Some Protocol Role";
 
 export function awardBadge(
   winnerAddress: string,
-  blockNumber: BigInt,
-  transactionHash: string
+  event: ethereum.Event
 ): BadgeAward {
   // Only 1 TestnetWandererBadge per User Allowed
   let badgeAward = BadgeAward.load(winnerAddress);
@@ -29,10 +29,15 @@ export function awardBadge(
     badgeDefinition.badgeCount = badgeDefinition.badgeCount + 1;
     badgeDefinition.save();
 
+    let blockAwarded = event.block.number;
+    let timestampAwarded = event.block.timestamp;
+    let transactionHash = event.transaction.hash.toHexString();
+
     badgeAward = new BadgeAward(winnerAddress);
     badgeAward.winner = winnerAddress;
     badgeAward.definition = badgeDefinition.id;
-    badgeAward.blockAwarded = blockNumber;
+    badgeAward.blockAwarded = blockAwarded;
+    badgeAward.timestampAwarded = timestampAwarded;
     badgeAward.globalBadgeNumber = badgeDefinition.badgeCount;
     badgeAward.winnerBadgeNumber = 1;
     badgeAward.transactionHash = transactionHash;
@@ -62,6 +67,8 @@ export function provideBadgeDefinition(): BadgeDefinition {
     badgeDefinition = new BadgeDefinition(BADGE_NAME);
     badgeDefinition.protocol = protocol.id;
     badgeDefinition.description = BADGE_DESCRIPTION;
+    badgeDefinition.protocolRole = BADGE_ROLE;
+
     badgeDefinition.image = "TBD";
     badgeDefinition.artist = "TBD";
     badgeDefinition.badgeCount = 0;
